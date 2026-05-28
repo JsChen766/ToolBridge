@@ -6,3 +6,5 @@ export * from "./core/loadToolFunction.js";
 export * from "./core/loadTools.js";
 export * from "./core/executeTool.js";
 export * from "./mcp/stdioServer.js";
+export * from "./project/config.js";
+export * from "./project/loadProjectToolSet.js";

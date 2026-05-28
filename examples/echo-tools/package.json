@@ -2,13 +2,19 @@
   "name": "echo-tools",
   "version": "0.1.0",
   "type": "module",
-  "agentTools": {
+  "toolbridge": {
     "version": "0.1",
     "tools": {
       "echo": {
         "entry": "./tools/echo.js#echo",
-        "description": "Echo a message back to the user.",
-        "inputSchema": "./schemas/echo.input.json"
+        "description": "Echo back a plain text message.",
+        "inputSchema": "./schemas/echo.input.json",
+        "enabled": true,
+        "targets": {
+          "mcp": {
+            "enabled": true
+          }
+        }
       }
     }
   }

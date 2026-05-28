@@ -6,7 +6,7 @@ export async function validateCommand(packageRef: string): Promise<void> {
   const result = await validateManifest(readResult);
 
   if (result.ok) {
-    console.log(`Valid agentTools manifest in ${readResult.packageJsonPath}`);
+    console.log(`Valid manifest in ${readResult.packageJsonPath}`);
     return;
   }
 

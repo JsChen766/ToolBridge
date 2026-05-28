@@ -42,7 +42,7 @@ export async function executeToolByName(
 
   const manifest = readResult.manifest;
   if (!manifest) {
-    throw new Error("Missing agentTools manifest");
+    throw new Error("Missing toolbridge or agentTools manifest");
   }
 
   const tools = loadTools(manifest);

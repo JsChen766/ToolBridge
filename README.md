@@ -1,55 +1,90 @@
 # ToolBridge
 
-Expose npm-installed functions as MCP tools.
+One project, one bridge, selected tools only.
 
-Tool authors should not need to write a full MCP server. They only declare tools in `package.json`, and ToolBridge exposes them through a lightweight MCP stdio adapter.
+Install many. Declare many. Expose few.
 
-## Quickstart
+ToolBridge is a lightweight CLI/library that turns npm package tool declarations into MCP tools through one project-level stdio bridge.
+
+## Model
+
+ToolBridge separates three layers:
+
+- `npm install` = installed tools
+- `package.json.toolbridge` (or legacy `package.json.agentTools`) = declared tools
+- `toolbridge.config.json` = exposed tools
+
+ToolBridge does not auto-expose all installed packages. Only tools selected in `toolbridge.config.json` are exposed to MCP.
+
+## Project-Level Quickstart
 
 ```bash
 npm install
 npm run build
 
-npm run dev -- inspect ./examples/echo-tools
-npm run dev -- validate ./examples/echo-tools
-npm run dev -- run ./examples/echo-tools echo '{"message":"hello"}'
-npm run dev -- mcp ./examples/echo-tools
-npm run dev -- link ./examples/echo-tools --target claude-code --dry-run
+npm run dev -- init
+npm run dev -- add ./examples/echo-tools
+npm run dev -- inspect --project .
+npm run dev -- link --project . --target claude-code --dry-run
+npm run dev -- mcp --project .
 ```
 
-## agentTools v0.1 spec
+`toolbridge mcp --project .` is the recommended mode.
 
-Declare tools in your package `package.json`:
+Legacy/debug mode is still available:
+
+```bash
+toolbridge mcp ./examples/echo-tools
+```
+
+## Package Tool Declaration
+
+Recommended package manifest field:
 
 ```json
 {
-  "agentTools": {
+  "toolbridge": {
     "version": "0.1",
     "tools": {
       "echo": {
         "entry": "./tools/echo.js#echo",
-        "description": "Echo a message back to the user.",
-        "inputSchema": "./schemas/echo.input.json"
+        "description": "Echo back a plain text message.",
+        "inputSchema": "./schemas/echo.input.json",
+        "enabled": true,
+        "targets": {
+          "mcp": {
+            "enabled": true
+          }
+        }
       }
     }
   }
 }
 ```
 
-Rules for each tool in `agentTools.tools`:
+Legacy `agentTools` is still supported. ToolBridge reads `toolbridge` first, then falls back to `agentTools`.
 
-- `entry`: required, non-empty, format `./file.js#exportName`
-- `description`: required, non-empty
-- `inputSchema`: required, must point to a valid JSON Schema file
+Required per tool:
 
-Rules for the manifest:
+- `entry`
+- `description`
+- `inputSchema`
 
-- `agentTools.version` must be `"0.1"`
-- `agentTools.tools` must contain at least one tool
+Optional per tool:
 
-## Tool function contract
+- `enabled`
+- `targets.mcp.enabled`
 
-Tool functions should accept a JSON object and return a JSON-serializable object:
+`entry` format:
+
+```text
+./file.js#exportName
+```
+
+Tool function contract:
+
+- input: JSON object
+- output: JSON-serializable object
 
 ```js
 export async function echo(input) {
@@ -57,72 +92,103 @@ export async function echo(input) {
 }
 ```
 
-## CLI commands
+## Project Config
 
-- `toolbridge inspect <package>`: show tools in a package
-- `toolbridge validate <package>`: validate `agentTools` manifest
-- `toolbridge run <package> <tool> <json>`: execute one tool locally
-- `toolbridge mcp <package>`: run MCP stdio bridge for one package
-- `toolbridge link <package> --target claude-code --dry-run`: preview Claude Code MCP add command without writing config
+Create in project root:
 
-## Claude Code / local MCP config
-
-Published tool package:
-
-```bash
-claude mcp add echo-tools -- npx -y toolbridge mcp @demo/echo-tools
+```json
+{
+  "version": "0.1",
+  "packages": {
+    "./examples/echo-tools": {
+      "alias": "echo",
+      "enabled": true,
+      "targets": {
+        "mcp": {
+          "enabled": true
+        }
+      },
+      "tools": {
+        "echo": {
+          "enabled": true
+        }
+      }
+    }
+  }
+}
 ```
 
-`@demo/echo-tools` should be an npm package that is already published and contains `agentTools` in its `package.json`.
+Exposed tool names are generated as:
 
-Local development path:
-
-```bash
-npm run build
-claude mcp add echo-tools -- node /absolute/path/to/toolbridge/dist/cli.js mcp /absolute/path/to/toolbridge/examples/echo-tools
+```text
+<alias>_<toolName>
 ```
 
-## Manual E2E test with Claude Code
+For the example above, MCP exposes:
+
+```text
+echo_echo
+```
+
+## CLI Commands
+
+- `toolbridge init`
+- `toolbridge add <package>`
+- `toolbridge add <package>:<tool>`
+- `toolbridge inspect <package>`
+- `toolbridge inspect --project .`
+- `toolbridge validate <package>`
+- `toolbridge run <package> <tool> <json>`
+- `toolbridge mcp --project .` (recommended)
+- `toolbridge mcp <package>` (legacy/debug)
+- `toolbridge link --project . --target claude-code --dry-run` (recommended)
+- `toolbridge link <package> --target claude-code --dry-run` (legacy/debug)
+
+## Claude Code Link Preview
+
+ToolBridge currently provides dry-run preview only (no automatic config write):
+
+```bash
+toolbridge link --project . --target claude-code --dry-run
+toolbridge link ./examples/echo-tools --target claude-code --dry-run
+```
+
+Example output for project mode:
+
+```bash
+claude mcp add toolbridge-project -- node /absolute/path/to/toolbridge/dist/cli.js mcp --project /absolute/path/to/project
+```
+
+## Manual E2E with Claude Code
 
 ```bash
 npm install
 npm run build
 
-node dist/cli.js inspect ./examples/echo-tools
-node dist/cli.js validate ./examples/echo-tools
-node dist/cli.js run ./examples/echo-tools echo '{"message":"hello"}'
-
-claude mcp add echo-tools -- node /absolute/path/to/toolbridge/dist/cli.js mcp /absolute/path/to/toolbridge/examples/echo-tools
+npm run dev -- init
+npm run dev -- add ./examples/echo-tools
+npm run dev -- mcp --project .
 ```
 
-In Claude Code, ask the model:
-
-```text
-Use the echo tool to echo {"message":"hello from ToolBridge"}.
-```
-
-If this fails, check:
-
-- Node version
-- `dist/cli.js` exists
-- `examples/echo-tools` path is absolute in the Claude command
-- Claude Code successfully added the MCP server
-
-## Link dry-run examples
-
-ToolBridge supports command preview only in v0.1-alpha:
+In another terminal:
 
 ```bash
-toolbridge link @demo/echo-tools --target claude-code --dry-run
-toolbridge link ./examples/echo-tools --target claude-code --dry-run
+claude mcp add toolbridge-project -- node /absolute/path/to/toolbridge/dist/cli.js mcp --project /absolute/path/to/toolbridge
 ```
 
-This command does not execute `claude mcp add` and does not write any user configuration.
+Then ask in Claude Code:
 
-## Current limits (v0.1)
+```text
+Use the echo_echo tool to echo {"message":"hello from ToolBridge"}.
+```
 
-- v0.1 only supports Node/ESM tools
-- v0.1 only supports exposing one package at a time
-- v0.1 does not do npm install/uninstall
-- v0.1 does not do marketplace features
-- v0.1 does not do project scanning
+## Scope Limits (v0.1-alpha)
+
+- Node/ESM tools only
+- Single project-level MCP bridge per project
+- No npm install/uninstall
+- No marketplace/registry
+- No desktop app
+- No remote server
+- No multi-language runtime
+- No complex permission model

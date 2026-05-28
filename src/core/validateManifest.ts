@@ -4,7 +4,7 @@ import Ajv2020 from "ajv/dist/2020.js";
 import { parseEntry } from "./loadToolFunction.js";
 import { manifestSchema } from "./loadTools.js";
 import type {
-  AgentToolsManifest,
+  ToolbridgeManifest,
   ReadManifestResult,
   ValidationIssue,
   ValidationResult
@@ -23,11 +23,12 @@ export async function validateManifest(
   readResult: ReadManifestResult
 ): Promise<ValidationResult> {
   const issues: ValidationIssue[] = [];
+  const manifestPrefix = readResult.manifestNamespace ?? "toolbridge";
 
   if (!readResult.manifest) {
     issues.push({
-      path: "agentTools",
-      message: "Missing agentTools field in package.json"
+      path: "toolbridge",
+      message: "Missing toolbridge or agentTools field in package.json"
     });
     return { ok: false, issues };
   }
@@ -37,14 +38,14 @@ export async function validateManifest(
     for (const issue of parsed.error.issues) {
       const issuePath = issue.path.join(".");
       issues.push({
-        path: issuePath ? `agentTools.${issuePath}` : "agentTools",
+        path: issuePath ? `${manifestPrefix}.${issuePath}` : manifestPrefix,
         message: issue.message
       });
     }
     return { ok: false, issues };
   }
 
-  const manifest = parsed.data as AgentToolsManifest;
+  const manifest = parsed.data as ToolbridgeManifest;
   const ajv = new Ajv2020({ strict: false, allErrors: true });
 
   for (const [toolName, toolDefinition] of Object.entries(manifest.tools)) {
@@ -52,7 +53,7 @@ export async function validateManifest(
       parseEntry(toolDefinition.entry);
     } catch (error) {
       issues.push({
-        path: `agentTools.tools.${toolName}.entry`,
+        path: `${manifestPrefix}.tools.${toolName}.entry`,
         message: (error as Error).message
       });
       continue;
@@ -62,7 +63,7 @@ export async function validateManifest(
     const entryPath = path.resolve(readResult.packageRoot, entryFile);
     if (!(await fileExists(entryPath))) {
       issues.push({
-        path: `agentTools.tools.${toolName}.entry`,
+        path: `${manifestPrefix}.tools.${toolName}.entry`,
         message: `Entry file does not exist: ${entryFile}`
       });
     }
@@ -74,7 +75,7 @@ export async function validateManifest(
     const schemaPath = path.resolve(readResult.packageRoot, toolDefinition.inputSchema);
     if (!(await fileExists(schemaPath))) {
       issues.push({
-        path: `agentTools.tools.${toolName}.inputSchema`,
+        path: `${manifestPrefix}.tools.${toolName}.inputSchema`,
         message: `Schema file does not exist: ${toolDefinition.inputSchema}`
       });
       continue;
@@ -85,7 +86,7 @@ export async function validateManifest(
       const schemaJson = JSON.parse(schemaRaw) as Record<string, unknown>;
       if (schemaJson.type !== "object") {
         issues.push({
-          path: `agentTools.tools.${toolName}.inputSchema`,
+          path: `${manifestPrefix}.tools.${toolName}.inputSchema`,
           message: 'Schema root "type" must be "object"'
         });
         continue;
@@ -93,7 +94,7 @@ export async function validateManifest(
       ajv.compile(schemaJson);
     } catch (error) {
       issues.push({
-        path: `agentTools.tools.${toolName}.inputSchema`,
+        path: `${manifestPrefix}.tools.${toolName}.inputSchema`,
         message: `Invalid JSON schema: ${(error as Error).message}`
       });
     }

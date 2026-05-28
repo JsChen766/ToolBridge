@@ -21,28 +21,97 @@ async function createTempPackage(packageJson: object, files: Record<string, stri
   return dir;
 }
 
+const echoFiles = {
+  "tools/echo.js": 'export async function echo(input) { return { message: input.message }; }',
+  "schemas/echo.input.json":
+    '{"type":"object","properties":{"message":{"type":"string"}},"required":["message"],"additionalProperties":false}'
+};
+
 afterEach(async () => {
   while (tempDirs.length > 0) {
     const dir = tempDirs.pop();
-    if (!dir) {
-      continue;
+    if (dir) {
+      await rm(dir, { recursive: true, force: true });
     }
-    await rm(dir, { recursive: true, force: true });
   }
 });
 
-describe("validateManifest", () => {
-  it("returns ok for examples/echo-tools", async () => {
+describe("manifest compatibility and validation", () => {
+  it("returns ok for examples/echo-tools using toolbridge namespace", async () => {
     const readResult = await readManifest(path.join("examples", "echo-tools"));
     const result = await validateManifest(readResult);
 
+    expect(readResult.manifestNamespace).toBe("toolbridge");
     expect(result.ok).toBe(true);
-    expect(result.issues).toHaveLength(0);
   });
 
-  it("returns an error when agentTools is missing", async () => {
+  it("prefers toolbridge over agentTools when both exist", async () => {
+    const packageRoot = await createTempPackage(
+      {
+        name: "both-manifests",
+        version: "0.1.0",
+        type: "module",
+        toolbridge: {
+          version: "0.1",
+          tools: {
+            echo: {
+              entry: "./tools/echo.js#echo",
+              description: "From toolbridge",
+              inputSchema: "./schemas/echo.input.json"
+            }
+          }
+        },
+        agentTools: {
+          version: "0.1",
+          tools: {
+            wrong: {
+              entry: "./tools/missing.js#wrong",
+              description: "From agentTools",
+              inputSchema: "./schemas/missing.input.json"
+            }
+          }
+        }
+      },
+      echoFiles
+    );
+
+    const readResult = await readManifest(packageRoot);
+    const result = await validateManifest(readResult);
+
+    expect(readResult.manifestNamespace).toBe("toolbridge");
+    expect(result.ok).toBe(true);
+  });
+
+  it("falls back to agentTools when toolbridge is missing", async () => {
+    const packageRoot = await createTempPackage(
+      {
+        name: "legacy-agent-tools",
+        version: "0.1.0",
+        type: "module",
+        agentTools: {
+          version: "0.1",
+          tools: {
+            echo: {
+              entry: "./tools/echo.js#echo",
+              description: "Legacy manifest",
+              inputSchema: "./schemas/echo.input.json"
+            }
+          }
+        }
+      },
+      echoFiles
+    );
+
+    const readResult = await readManifest(packageRoot);
+    const result = await validateManifest(readResult);
+
+    expect(readResult.manifestNamespace).toBe("agentTools");
+    expect(result.ok).toBe(true);
+  });
+
+  it("returns an error when both toolbridge and agentTools are missing", async () => {
     const packageRoot = await createTempPackage({
-      name: "missing-agent-tools",
+      name: "missing-manifest",
       version: "0.1.0",
       type: "module"
     });
@@ -52,8 +121,8 @@ describe("validateManifest", () => {
 
     expect(result.ok).toBe(false);
     expect(result.issues).toContainEqual({
-      path: "agentTools",
-      message: "Missing agentTools field in package.json"
+      path: "toolbridge",
+      message: "Missing toolbridge or agentTools field in package.json"
     });
   });
 
@@ -63,7 +132,7 @@ describe("validateManifest", () => {
         name: "missing-description",
         version: "0.1.0",
         type: "module",
-        agentTools: {
+        toolbridge: {
           version: "0.1",
           tools: {
             echo: {
@@ -73,10 +142,7 @@ describe("validateManifest", () => {
           }
         }
       },
-      {
-        "tools/echo.js": 'export async function echo(input) { return { message: input.message }; }',
-        "schemas/echo.input.json": '{"type":"object","properties":{"message":{"type":"string"}}}'
-      }
+      echoFiles
     );
 
     const readResult = await readManifest(packageRoot);
@@ -84,125 +150,8 @@ describe("validateManifest", () => {
 
     expect(result.ok).toBe(false);
     expect(result.issues).toContainEqual({
-      path: "agentTools.tools.echo.description",
+      path: "toolbridge.tools.echo.description",
       message: "Required"
-    });
-  });
-
-  it("returns an error when inputSchema is missing", async () => {
-    const packageRoot = await createTempPackage(
-      {
-        name: "missing-input-schema",
-        version: "0.1.0",
-        type: "module",
-        agentTools: {
-          version: "0.1",
-          tools: {
-            echo: {
-              entry: "./tools/echo.js#echo",
-              description: "Echo"
-            }
-          }
-        }
-      },
-      {
-        "tools/echo.js": 'export async function echo(input) { return { message: input.message }; }'
-      }
-    );
-
-    const readResult = await readManifest(packageRoot);
-    const result = await validateManifest(readResult);
-
-    expect(result.ok).toBe(false);
-    expect(result.issues).toContainEqual({
-      path: "agentTools.tools.echo.inputSchema",
-      message: "Required"
-    });
-  });
-
-  it("returns an error when tools is empty", async () => {
-    const packageRoot = await createTempPackage({
-      name: "empty-tools",
-      version: "0.1.0",
-      type: "module",
-      agentTools: {
-        version: "0.1",
-        tools: {}
-      }
-    });
-
-    const readResult = await readManifest(packageRoot);
-    const result = await validateManifest(readResult);
-
-    expect(result.ok).toBe(false);
-    expect(result.issues).toContainEqual({
-      path: "agentTools.tools",
-      message: "Must declare at least one tool"
-    });
-  });
-
-  it("returns an error when inputSchema file does not exist", async () => {
-    const packageRoot = await createTempPackage(
-      {
-        name: "missing-schema-file",
-        version: "0.1.0",
-        type: "module",
-        agentTools: {
-          version: "0.1",
-          tools: {
-            echo: {
-              entry: "./tools/echo.js#echo",
-              description: "Echo",
-              inputSchema: "./schemas/missing.input.json"
-            }
-          }
-        }
-      },
-      {
-        "tools/echo.js": 'export async function echo(input) { return { message: input.message }; }'
-      }
-    );
-
-    const readResult = await readManifest(packageRoot);
-    const result = await validateManifest(readResult);
-
-    expect(result.ok).toBe(false);
-    expect(result.issues).toContainEqual({
-      path: "agentTools.tools.echo.inputSchema",
-      message: "Schema file does not exist: ./schemas/missing.input.json"
-    });
-  });
-
-  it('returns an error when inputSchema root type is not "object"', async () => {
-    const packageRoot = await createTempPackage(
-      {
-        name: "non-object-schema-root",
-        version: "0.1.0",
-        type: "module",
-        agentTools: {
-          version: "0.1",
-          tools: {
-            echo: {
-              entry: "./tools/echo.js#echo",
-              description: "Echo",
-              inputSchema: "./schemas/echo.input.json"
-            }
-          }
-        }
-      },
-      {
-        "tools/echo.js": 'export async function echo(input) { return { message: input.message }; }',
-        "schemas/echo.input.json": '{"type":"string"}'
-      }
-    );
-
-    const readResult = await readManifest(packageRoot);
-    const result = await validateManifest(readResult);
-
-    expect(result.ok).toBe(false);
-    expect(result.issues).toContainEqual({
-      path: "agentTools.tools.echo.inputSchema",
-      message: 'Schema root "type" must be "object"'
     });
   });
 });

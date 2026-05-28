@@ -16,11 +16,17 @@ export async function readManifest(
     throw new Error(`Invalid JSON in ${packageJsonPath}`);
   }
 
+  const hasToolbridge = packageJson.toolbridge !== undefined;
+  const hasAgentTools = packageJson.agentTools !== undefined;
+  const manifestNamespace = hasToolbridge ? "toolbridge" : hasAgentTools ? "agentTools" : null;
+  const rawManifest = hasToolbridge ? packageJson.toolbridge : hasAgentTools ? packageJson.agentTools : null;
+
   return {
     packageRef,
     packageRoot,
     packageJsonPath,
     packageJson,
-    manifest: (packageJson.agentTools ?? null) as ReadManifestResult["manifest"]
+    manifest: rawManifest as ReadManifestResult["manifest"],
+    manifestNamespace
   };
 }

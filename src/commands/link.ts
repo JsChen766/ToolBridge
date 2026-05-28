@@ -1,10 +1,12 @@
 import { access } from "node:fs/promises";
 import path from "node:path";
 import { readManifest } from "../core/readManifest.js";
+import { resolveProjectRoot } from "../project/config.js";
 
 interface LinkOptions {
   target?: string;
   dryRun?: boolean;
+  project?: string;
 }
 
 async function exists(targetPath: string): Promise<boolean> {
@@ -39,13 +41,24 @@ async function resolveLinkName(packageRef: string, isLocalPath: boolean): Promis
   return toSafeName(path.basename(path.resolve(packageRef)));
 }
 
-export async function linkCommand(packageRef: string, options: LinkOptions): Promise<void> {
+export async function linkCommand(packageRef?: string, options: LinkOptions = {}): Promise<void> {
   if (options.target !== "claude-code") {
     throw new Error('Only "--target claude-code" is supported in v0.1-alpha');
   }
 
   if (!options.dryRun) {
     throw new Error('Only "--dry-run" is supported in v0.1-alpha');
+  }
+
+  if (options.project) {
+    const projectRoot = resolveProjectRoot(options.project);
+    const cliPath = path.resolve("dist", "cli.js");
+    console.log(`claude mcp add toolbridge-project -- node ${cliPath} mcp --project ${projectRoot}`);
+    return;
+  }
+
+  if (!packageRef) {
+    throw new Error('Missing package. Use "toolbridge link <package>" or "toolbridge link --project ."');
   }
 
   const localCandidate = path.resolve(packageRef);
