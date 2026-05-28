@@ -1,7 +1,7 @@
 import { readManifest } from "../core/readManifest.js";
 import { loadTools } from "../core/loadTools.js";
 import { validateManifest } from "../core/validateManifest.js";
-import { getProjectConfigPath, resolveProjectRoot } from "../project/config.js";
+import { getProjectConfigPath, readProjectConfig, resolveProjectRoot } from "../project/config.js";
 import { loadProjectToolSet } from "../project/loadProjectToolSet.js";
 
 interface InspectOptions {
@@ -43,6 +43,7 @@ async function inspectPackage(packageRef: string): Promise<void> {
 async function inspectProject(projectInput?: string): Promise<void> {
   const projectRoot = resolveProjectRoot(projectInput);
   const configPath = getProjectConfigPath(projectRoot);
+  const config = await readProjectConfig(projectRoot);
   const projectToolSet = await loadProjectToolSet(projectRoot);
 
   console.log(`Project: ${projectRoot}`);
@@ -51,7 +52,13 @@ async function inspectProject(projectInput?: string): Promise<void> {
   console.log("Exposed tools:");
 
   if (projectToolSet.tools.length === 0) {
-    console.log('No exposed tools. Use "toolbridge add <package>" to enable tools.');
+    console.log("No exposed tools.");
+    if (Object.keys(config.packages).length > 0) {
+      console.log("Configured packages exist, but no tools are currently exposed.");
+      console.log("Check whether each package has tools configured and enabled.");
+      console.log('Possible causes: packages have no tools configured, tools are disabled, target mcp is disabled, or package defaults are disabled.');
+    }
+    console.log('Use "toolbridge add <package>" to enable tools.');
     return;
   }
 

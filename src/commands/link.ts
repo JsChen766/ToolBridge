@@ -9,6 +9,10 @@ interface LinkOptions {
   project?: string;
 }
 
+function quote(value: string): string {
+  return `"${value.replace(/"/g, '\\"')}"`;
+}
+
 async function exists(targetPath: string): Promise<boolean> {
   try {
     await access(targetPath);
@@ -53,7 +57,9 @@ export async function linkCommand(packageRef?: string, options: LinkOptions = {}
   if (options.project) {
     const projectRoot = resolveProjectRoot(options.project);
     const cliPath = path.resolve("dist", "cli.js");
-    console.log(`claude mcp add toolbridge-project -- node ${cliPath} mcp --project ${projectRoot}`);
+    console.log(
+      `claude mcp add toolbridge-project -- node ${quote(cliPath)} mcp --project ${quote(projectRoot)}`
+    );
     return;
   }
 
@@ -68,7 +74,7 @@ export async function linkCommand(packageRef?: string, options: LinkOptions = {}
   if (isLocalPath) {
     const cliPath = path.resolve("dist", "cli.js");
     const packagePath = localCandidate;
-    console.log(`claude mcp add ${safeName} -- node ${cliPath} mcp ${packagePath}`);
+    console.log(`claude mcp add ${safeName} -- node ${quote(cliPath)} mcp ${quote(packagePath)}`);
     return;
   }
 

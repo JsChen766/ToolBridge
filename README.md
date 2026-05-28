@@ -37,6 +37,9 @@ Legacy/debug mode is still available:
 toolbridge mcp ./examples/echo-tools
 ```
 
+Package-level mode is useful for debugging a single tool package, but project-level mode is recommended for real agent usage.
+Project-level mode keeps one MCP server per project and exposes only selected tools from `toolbridge.config.json`.
+
 ## Package Tool Declaration
 
 Recommended package manifest field:
@@ -144,6 +147,12 @@ echo_echo
 - `toolbridge link --project . --target claude-code --dry-run` (recommended)
 - `toolbridge link <package> --target claude-code --dry-run` (legacy/debug)
 
+Windows note for `add <package>:<tool>`:
+
+- On Windows, do not use `:tool` suffix with absolute paths like `E:\...`.
+- Use a relative path instead: `toolbridge add ./examples/echo-tools:echo`
+- Or use an npm package name: `toolbridge add @scope/pkg:toolName`
+
 ## Claude Code Link Preview
 
 ToolBridge currently provides dry-run preview only (no automatic config write):
@@ -161,26 +170,41 @@ claude mcp add toolbridge-project -- node /absolute/path/to/toolbridge/dist/cli.
 
 ## Manual E2E with Claude Code
 
+1. Build:
+
 ```bash
 npm install
 npm run build
+```
 
-npm run dev -- init
-npm run dev -- add ./examples/echo-tools
+2. Create project config:
+
+```bash
+node dist/cli.js init
+node dist/cli.js add ./examples/echo-tools
+node dist/cli.js inspect --project .
+```
+
+3. Add to Claude Code:
+
+```bash
+claude mcp add toolbridge-project -- node "<absolute path>/dist/cli.js" mcp --project "<absolute project path>"
+```
+
+4. Start Claude Code and ask:
+
+```text
+Use the echo_echo tool with message set to hello from project bridge.
+```
+
+Optional local smoke test:
+
+```bash
 npm run dev -- mcp --project .
 ```
 
-In another terminal:
-
-```bash
-claude mcp add toolbridge-project -- node /absolute/path/to/toolbridge/dist/cli.js mcp --project /absolute/path/to/toolbridge
-```
-
-Then ask in Claude Code:
-
-```text
-Use the echo_echo tool to echo {"message":"hello from ToolBridge"}.
-```
+For Claude Code E2E, do not keep this command running manually.
+Claude Code starts the stdio command automatically after `claude mcp add`.
 
 ## Scope Limits (v0.1-alpha)
 

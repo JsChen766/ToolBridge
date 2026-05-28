@@ -170,6 +170,31 @@ describe("project config and toolset", () => {
     expect(output).toMatch(/echo_echo/);
   });
 
+  it("inspect --project explains why no tools are exposed when packages exist", async () => {
+    const projectRoot = await createTempProject();
+    await writePackage(projectRoot, "examples/echo-tools", createEchoPackageJson(), defaultFiles);
+    await writeProjectConfig(projectRoot, {
+      version: "0.1",
+      packages: {
+        "./examples/echo-tools": {
+          alias: "echo"
+        }
+      }
+    });
+
+    const lines: string[] = [];
+    vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+      lines.push(args.join(" "));
+    });
+
+    await inspectCommand(undefined, { project: projectRoot });
+    const output = lines.join("\n");
+    expect(output).toMatch(/No exposed tools\./);
+    expect(output).toMatch(/Configured packages exist, but no tools are currently exposed\./);
+    expect(output).toMatch(/packages have no tools configured/i);
+    expect(output).toMatch(/Use "toolbridge add <package>" to enable tools\./);
+  });
+
   it("throws clear error for non-existent tool in config", async () => {
     const projectRoot = await createTempProject();
     await writePackage(projectRoot, "examples/echo-tools", createEchoPackageJson(), defaultFiles);
