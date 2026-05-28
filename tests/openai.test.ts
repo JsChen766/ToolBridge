@@ -7,7 +7,7 @@ import { writeProjectConfig } from "../src/project/config.js";
 const tempDirs: string[] = [];
 
 async function createTempProject(): Promise<string> {
-  const baseDir = path.resolve("tests", ".tmp");
+  const baseDir = path.resolve(".tmp-toolbridge-tests");
   await mkdir(baseDir, { recursive: true });
   const dir = await mkdtemp(path.join(baseDir, "toolbridge-openai-"));
   tempDirs.push(dir);
@@ -61,6 +61,8 @@ afterEach(async () => {
       await rm(dir, { recursive: true, force: true });
     }
   }
+  const baseDir = path.resolve(".tmp-toolbridge-tests");
+  await rm(baseDir, { recursive: true, force: true });
 });
 
 describe("OpenAI adapter", () => {
@@ -159,7 +161,7 @@ describe("OpenAI adapter", () => {
           arguments: "{bad json"
         }
       })
-    ).rejects.toThrow('Invalid OpenAI tool call arguments for "echo_echo"');
+    ).rejects.toThrow('Invalid OpenAI tool call arguments for "echo_echo": invalid JSON');
   });
 
   it("unknown tool name should throw", async () => {
@@ -187,5 +189,59 @@ describe("OpenAI adapter", () => {
         }
       })
     ).rejects.toThrow('Tool "missing_tool" not found');
+  });
+
+  it("missing function.name should throw", async () => {
+    const projectRoot = await createTempProject();
+    await writeEchoPackage(projectRoot);
+    await writeProjectConfig(projectRoot, {
+      version: "0.1",
+      packages: {
+        "./examples/echo-tools": {
+          alias: "echo",
+          tools: {
+            echo: { enabled: true }
+          }
+        }
+      }
+    });
+
+    const toolSet = await createOpenAIToolSet({ projectRoot });
+    await expect(
+      toolSet.executeToolCall({
+        type: "function",
+        function: {
+          name: "",
+          arguments: "{}"
+        }
+      } as unknown as Parameters<typeof toolSet.executeToolCall>[0])
+    ).rejects.toThrow("Invalid OpenAI tool call: missing function.name");
+  });
+
+  it("non-string function.arguments should throw expected string error", async () => {
+    const projectRoot = await createTempProject();
+    await writeEchoPackage(projectRoot);
+    await writeProjectConfig(projectRoot, {
+      version: "0.1",
+      packages: {
+        "./examples/echo-tools": {
+          alias: "echo",
+          tools: {
+            echo: { enabled: true }
+          }
+        }
+      }
+    });
+
+    const toolSet = await createOpenAIToolSet({ projectRoot });
+    await expect(
+      toolSet.executeToolCall({
+        type: "function",
+        function: {
+          name: "echo_echo",
+          arguments: 123 as unknown as string
+        }
+      })
+    ).rejects.toThrow('Invalid OpenAI tool call arguments for "echo_echo": expected string');
   });
 });

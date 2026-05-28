@@ -24,14 +24,22 @@ interface AnthropicAdapterOptions {
   projectRoot?: string;
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
 function normalizeInput(toolName: string, input: unknown): Record<string, unknown> {
   if (input === undefined || input === null) {
     return {};
   }
-  if (typeof input !== "object" || Array.isArray(input)) {
+  if (!isPlainObject(input)) {
     throw new Error(`Invalid Anthropic tool input for "${toolName}"`);
   }
-  return input as Record<string, unknown>;
+  return input;
 }
 
 export async function createAnthropicToolSet(

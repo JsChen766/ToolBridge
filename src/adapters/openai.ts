@@ -30,8 +30,23 @@ interface OpenAIAdapterOptions {
   projectRoot?: string;
 }
 
-function parseArguments(toolName: string, rawArguments: string | undefined): unknown {
-  const normalized = rawArguments?.trim() ?? "";
+function parseToolName(toolCall: OpenAIToolCall): string {
+  const name = toolCall?.function?.name;
+  if (typeof name !== "string" || name.trim().length === 0) {
+    throw new Error("Invalid OpenAI tool call: missing function.name");
+  }
+  return name;
+}
+
+function parseArguments(toolName: string, rawArguments: unknown): unknown {
+  if (rawArguments === undefined) {
+    return {};
+  }
+  if (typeof rawArguments !== "string") {
+    throw new Error(`Invalid OpenAI tool call arguments for "${toolName}": expected string`);
+  }
+
+  const normalized = rawArguments.trim();
   if (normalized.length === 0) {
     return {};
   }
@@ -39,7 +54,7 @@ function parseArguments(toolName: string, rawArguments: string | undefined): unk
   try {
     return JSON.parse(normalized);
   } catch {
-    throw new Error(`Invalid OpenAI tool call arguments for "${toolName}"`);
+    throw new Error(`Invalid OpenAI tool call arguments for "${toolName}": invalid JSON`);
   }
 }
 
@@ -61,11 +76,8 @@ export async function createOpenAIToolSet(
     projectRoot: projectToolSet.projectRoot,
     tools,
     async executeToolCall(toolCall: OpenAIToolCall): Promise<unknown> {
-      const toolName = toolCall?.function?.name;
-      if (!toolName) {
-        throw new Error('Invalid OpenAI tool call arguments for "unknown"');
-      }
-      const parsedArguments = parseArguments(toolName, toolCall.function.arguments);
+      const toolName = parseToolName(toolCall);
+      const parsedArguments = parseArguments(toolName, toolCall?.function?.arguments);
       return await projectToolSet.execute(toolName, parsedArguments);
     },
     async execute(name: string, input: unknown): Promise<unknown> {

@@ -7,7 +7,7 @@ import { writeProjectConfig } from "../src/project/config.js";
 const tempDirs: string[] = [];
 
 async function createTempProject(): Promise<string> {
-  const baseDir = path.resolve("tests", ".tmp");
+  const baseDir = path.resolve(".tmp-toolbridge-tests");
   await mkdir(baseDir, { recursive: true });
   const dir = await mkdtemp(path.join(baseDir, "toolbridge-anthropic-"));
   tempDirs.push(dir);
@@ -61,6 +61,8 @@ afterEach(async () => {
       await rm(dir, { recursive: true, force: true });
     }
   }
+  const baseDir = path.resolve(".tmp-toolbridge-tests");
+  await rm(baseDir, { recursive: true, force: true });
 });
 
 describe("Anthropic adapter", () => {
@@ -177,5 +179,57 @@ describe("Anthropic adapter", () => {
         input: {}
       })
     ).rejects.toThrow('Tool "missing_tool" not found');
+  });
+
+  it("Date input should throw", async () => {
+    const projectRoot = await createTempProject();
+    await writeEchoPackage(projectRoot);
+    await writeProjectConfig(projectRoot, {
+      version: "0.1",
+      packages: {
+        "./examples/echo-tools": {
+          alias: "echo",
+          tools: {
+            echo: { enabled: true }
+          }
+        }
+      }
+    });
+
+    const toolSet = await createAnthropicToolSet({ projectRoot });
+    await expect(
+      toolSet.executeToolUse({
+        name: "echo_echo",
+        input: new Date()
+      })
+    ).rejects.toThrow('Invalid Anthropic tool input for "echo_echo"');
+  });
+
+  it("class instance input should throw", async () => {
+    class MessageInput {
+      constructor(public message: string) {}
+    }
+
+    const projectRoot = await createTempProject();
+    await writeEchoPackage(projectRoot);
+    await writeProjectConfig(projectRoot, {
+      version: "0.1",
+      packages: {
+        "./examples/echo-tools": {
+          alias: "echo",
+          tools: {
+            echo: { enabled: true }
+          }
+        }
+      }
+    });
+
+    const toolSet = await createAnthropicToolSet({ projectRoot });
+    await expect(
+      toolSet.executeToolUse({
+        name: "echo_echo",
+        input: new MessageInput("hello")
+      })
+    ).rejects.toThrow('Invalid Anthropic tool input for "echo_echo"');
   });
 });

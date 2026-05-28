@@ -54,6 +54,9 @@ ToolBridge is not only an MCP bridge.
 Adapters read only tools selected in `toolbridge.config.json`.
 Installed packages do not automatically enter model context.
 Token cost comes from exposed tool schemas, not installed packages.
+ToolBridge adapters do not call the model. They only:
+1. convert selected project tools into provider-compatible tool schemas
+2. execute tool calls/tool uses returned by your agent runtime
 
 ### OpenAI-Compatible Example
 
@@ -78,6 +81,10 @@ for (const toolCall of response.choices[0].message.tool_calls ?? []) {
 }
 ```
 
+- `executeToolCall` only executes one returned tool call.
+- You still need to append the tool result back to your agent loop according to your model provider's API.
+- ToolBridge does not run the model or manage the full agent loop.
+
 ### Anthropic-Compatible Example
 
 ```ts
@@ -98,6 +105,10 @@ for (const block of response.content) {
   }
 }
 ```
+
+- `executeToolUse` only executes one `tool_use` block.
+- You still need to send a `tool_result` message/block back in your own agent loop.
+- ToolBridge only adapts selected tools and executes tool calls.
 
 ## Package Tool Declaration
 
@@ -224,7 +235,7 @@ toolbridge link ./examples/echo-tools --target claude-code --dry-run
 Example output for project mode:
 
 ```bash
-claude mcp add toolbridge-project -- node /absolute/path/to/toolbridge/dist/cli.js mcp --project /absolute/path/to/project
+claude mcp add toolbridge-project -- node "/absolute/path/to/toolbridge/dist/cli.js" mcp --project "/absolute/path/to/project"
 ```
 
 ## Manual E2E with Claude Code
@@ -264,6 +275,17 @@ npm run dev -- mcp --project .
 
 For Claude Code E2E, do not keep this command running manually.
 Claude Code starts the stdio command automatically after `claude mcp add`.
+
+## Adapter Smoke Test
+
+```bash
+npm run build
+node dist/cli.js init
+node dist/cli.js add ./examples/echo-tools
+node examples/adapter-smoke.mjs
+```
+
+`init` may print "already exists" if config already exists. That is fine.
 
 ## Scope Limits (v0.1-alpha)
 
