@@ -37,6 +37,9 @@ async function inspectPackage(packageRef: string): Promise<void> {
     console.log(`  description: ${definition.description}`);
     console.log(`  entry: ${definition.entry}`);
     console.log(`  inputSchema: ${definition.inputSchema}`);
+    if (definition.outputSchema) {
+      console.log(`  outputSchema: ${definition.outputSchema}`);
+    }
   }
 }
 

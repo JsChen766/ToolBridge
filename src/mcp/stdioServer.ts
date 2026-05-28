@@ -82,7 +82,7 @@ async function startServer(
   const toolNames = new Set(definitions.map((definition) => definition.name));
 
   const server = new Server(
-    { name: "toolbridge-mcp", version: "0.1.0" },
+    { name: "toolbridge-mcp", version: "0.1.1" },
     { capabilities: { tools: {} } }
   );
 

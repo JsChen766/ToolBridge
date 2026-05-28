@@ -1,6 +1,6 @@
 {
   "name": "toolbridge",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "One project-level bridge for selected npm-declared agent tools via MCP and native adapters.",
   "type": "module",
   "engines": {

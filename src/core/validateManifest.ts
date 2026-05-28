@@ -1,5 +1,6 @@
-import { access, readFile } from "node:fs/promises";
+import { access, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import Ajv2020 from "ajv/dist/2020.js";
 import { parseEntry } from "./loadToolFunction.js";
 import { manifestSchema } from "./loadTools.js";
@@ -16,6 +17,50 @@ async function fileExists(targetPath: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+async function validateSchemaFile(
+  ajv: Ajv2020,
+  packageRoot: string,
+  manifestPrefix: string,
+  toolName: string,
+  fieldName: "inputSchema" | "outputSchema",
+  schemaRef: string,
+  issues: ValidationIssue[]
+): Promise<void> {
+  const issuePath = `${manifestPrefix}.tools.${toolName}.${fieldName}`;
+  const schemaPath = path.resolve(packageRoot, schemaRef);
+
+  if (!(await fileExists(schemaPath))) {
+    issues.push({
+      path: issuePath,
+      message: `Schema file does not exist: ${schemaRef}`
+    });
+    return;
+  }
+
+  try {
+    const schemaRaw = await readFile(schemaPath, "utf8");
+    const schemaJson = JSON.parse(schemaRaw) as Record<string, unknown>;
+    if (
+      !schemaJson ||
+      typeof schemaJson !== "object" ||
+      Array.isArray(schemaJson) ||
+      schemaJson.type !== "object"
+    ) {
+      issues.push({
+        path: issuePath,
+        message: 'Schema root "type" must be "object"'
+      });
+      return;
+    }
+    ajv.compile(schemaJson);
+  } catch (error) {
+    issues.push({
+      path: issuePath,
+      message: `Invalid JSON schema: ${(error as Error).message}`
+    });
   }
 }
 
@@ -49,54 +94,72 @@ export async function validateManifest(
   const ajv = new Ajv2020({ strict: false, allErrors: true });
 
   for (const [toolName, toolDefinition] of Object.entries(manifest.tools)) {
+    const entryIssuePath = `${manifestPrefix}.tools.${toolName}.entry`;
+    let entryFile = "";
+    let exportName = "";
+
     try {
-      parseEntry(toolDefinition.entry);
+      const parsedEntry = parseEntry(toolDefinition.entry);
+      entryFile = parsedEntry.modulePath;
+      exportName = parsedEntry.exportName;
     } catch (error) {
       issues.push({
-        path: `${manifestPrefix}.tools.${toolName}.entry`,
+        path: entryIssuePath,
         message: (error as Error).message
       });
       continue;
     }
 
-    const [entryFile] = toolDefinition.entry.split("#");
     const entryPath = path.resolve(readResult.packageRoot, entryFile);
     if (!(await fileExists(entryPath))) {
       issues.push({
-        path: `${manifestPrefix}.tools.${toolName}.entry`,
+        path: entryIssuePath,
         message: `Entry file does not exist: ${entryFile}`
       });
-    }
-
-    if (!toolDefinition.inputSchema) {
-      continue;
-    }
-
-    const schemaPath = path.resolve(readResult.packageRoot, toolDefinition.inputSchema);
-    if (!(await fileExists(schemaPath))) {
-      issues.push({
-        path: `${manifestPrefix}.tools.${toolName}.inputSchema`,
-        message: `Schema file does not exist: ${toolDefinition.inputSchema}`
-      });
-      continue;
-    }
-
-    try {
-      const schemaRaw = await readFile(schemaPath, "utf8");
-      const schemaJson = JSON.parse(schemaRaw) as Record<string, unknown>;
-      if (schemaJson.type !== "object") {
+    } else {
+      try {
+        const resolvedEntryPath = await realpath(entryPath);
+        const moduleUrl = pathToFileURL(resolvedEntryPath).href;
+        const moduleExports = (await import(moduleUrl)) as Record<string, unknown>;
+        if (!(exportName in moduleExports)) {
+          issues.push({
+            path: entryIssuePath,
+            message: `Entry export "${exportName}" not found in ${entryFile}`
+          });
+        } else if (typeof moduleExports[exportName] !== "function") {
+          issues.push({
+            path: entryIssuePath,
+            message: `Entry export "${exportName}" is not a function in ${entryFile}`
+          });
+        }
+      } catch (error) {
         issues.push({
-          path: `${manifestPrefix}.tools.${toolName}.inputSchema`,
-          message: 'Schema root "type" must be "object"'
+          path: entryIssuePath,
+          message: `Failed to import entry module ${entryFile}: ${(error as Error).message}`
         });
-        continue;
       }
-      ajv.compile(schemaJson);
-    } catch (error) {
-      issues.push({
-        path: `${manifestPrefix}.tools.${toolName}.inputSchema`,
-        message: `Invalid JSON schema: ${(error as Error).message}`
-      });
+    }
+
+    await validateSchemaFile(
+      ajv,
+      readResult.packageRoot,
+      manifestPrefix,
+      toolName,
+      "inputSchema",
+      toolDefinition.inputSchema,
+      issues
+    );
+
+    if (toolDefinition.outputSchema) {
+      await validateSchemaFile(
+        ajv,
+        readResult.packageRoot,
+        manifestPrefix,
+        toolName,
+        "outputSchema",
+        toolDefinition.outputSchema,
+        issues
+      );
     }
   }
 

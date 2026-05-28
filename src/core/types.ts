@@ -12,6 +12,7 @@ export interface ToolDefinition {
   entry: string;
   description: string;
   inputSchema: string;
+  outputSchema?: string;
   enabled?: boolean;
   targets?: ToolTargets;
 }

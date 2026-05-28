@@ -20,6 +20,7 @@ export interface ProjectTool {
   alias: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  outputSchema?: Record<string, unknown>;
 }
 
 export interface ProjectToolSet {
@@ -38,11 +39,11 @@ function toExposedName(alias: string, toolName: string): string {
   return `${toSafeSegment(alias)}_${toSafeSegment(toolName)}`;
 }
 
-async function readToolInputSchema(packageRoot: string, schemaRef: string): Promise<ObjectSchema> {
+async function readToolSchema(packageRoot: string, schemaRef: string): Promise<ObjectSchema> {
   const schemaPath = path.resolve(packageRoot, schemaRef);
   const raw = await readFile(schemaPath, "utf8");
   const parsed = JSON.parse(raw) as Record<string, unknown>;
-  if (parsed.type !== "object") {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || parsed.type !== "object") {
     throw new Error(`Schema root "type" must be "object": ${schemaRef}`);
   }
   return parsed as ObjectSchema;
@@ -105,7 +106,10 @@ export async function loadProjectToolSet(projectRoot: string): Promise<ProjectTo
         throw new Error(`Exposed tool name collision: "${exposedName}"`);
       }
 
-      const inputSchema = await readToolInputSchema(readResult.packageRoot, declaredTool.inputSchema);
+      const inputSchema = await readToolSchema(readResult.packageRoot, declaredTool.inputSchema);
+      const outputSchema = declaredTool.outputSchema
+        ? await readToolSchema(readResult.packageRoot, declaredTool.outputSchema)
+        : undefined;
       routeMap.set(exposedName, { packageRef, originalName: configuredToolName });
       tools.push({
         exposedName,
@@ -113,7 +117,8 @@ export async function loadProjectToolSet(projectRoot: string): Promise<ProjectTo
         originalName: configuredToolName,
         alias: packageConfig.alias,
         description: declaredTool.description,
-        inputSchema
+        inputSchema,
+        outputSchema
       });
     }
   }

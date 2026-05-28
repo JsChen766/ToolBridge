@@ -24,6 +24,8 @@ async function createTempPackage(packageJson: object, files: Record<string, stri
 const echoFiles = {
   "tools/echo.js": 'export async function echo(input) { return { message: input.message }; }',
   "schemas/echo.input.json":
+    '{"type":"object","properties":{"message":{"type":"string"}},"required":["message"],"additionalProperties":false}',
+  "schemas/echo.output.json":
     '{"type":"object","properties":{"message":{"type":"string"}},"required":["message"],"additionalProperties":false}'
 };
 
@@ -152,6 +154,224 @@ describe("manifest compatibility and validation", () => {
     expect(result.issues).toContainEqual({
       path: "toolbridge.tools.echo.description",
       message: "Required"
+    });
+  });
+
+  it("returns ok when optional outputSchema is present and valid", async () => {
+    const packageRoot = await createTempPackage(
+      {
+        name: "valid-output-schema",
+        version: "0.1.0",
+        type: "module",
+        toolbridge: {
+          version: "0.1",
+          tools: {
+            echo: {
+              entry: "./tools/echo.js#echo",
+              description: "Echo output schema",
+              inputSchema: "./schemas/echo.input.json",
+              outputSchema: "./schemas/echo.output.json"
+            }
+          }
+        }
+      },
+      echoFiles
+    );
+
+    const readResult = await readManifest(packageRoot);
+    const result = await validateManifest(readResult);
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("returns an error when outputSchema file does not exist", async () => {
+    const packageRoot = await createTempPackage(
+      {
+        name: "missing-output-schema",
+        version: "0.1.0",
+        type: "module",
+        toolbridge: {
+          version: "0.1",
+          tools: {
+            echo: {
+              entry: "./tools/echo.js#echo",
+              description: "Echo output schema",
+              inputSchema: "./schemas/echo.input.json",
+              outputSchema: "./schemas/missing.output.json"
+            }
+          }
+        }
+      },
+      echoFiles
+    );
+
+    const readResult = await readManifest(packageRoot);
+    const result = await validateManifest(readResult);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContainEqual({
+      path: "toolbridge.tools.echo.outputSchema",
+      message: "Schema file does not exist: ./schemas/missing.output.json"
+    });
+  });
+
+  it("returns an error when outputSchema is invalid JSON", async () => {
+    const packageRoot = await createTempPackage(
+      {
+        name: "invalid-output-schema-json",
+        version: "0.1.0",
+        type: "module",
+        toolbridge: {
+          version: "0.1",
+          tools: {
+            echo: {
+              entry: "./tools/echo.js#echo",
+              description: "Echo output schema",
+              inputSchema: "./schemas/echo.input.json",
+              outputSchema: "./schemas/echo.output.json"
+            }
+          }
+        }
+      },
+      {
+        ...echoFiles,
+        "schemas/echo.output.json": "{invalid-json"
+      }
+    );
+
+    const readResult = await readManifest(packageRoot);
+    const result = await validateManifest(readResult);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.some((issue) => issue.path === "toolbridge.tools.echo.outputSchema")).toBe(true);
+  });
+
+  it('returns an error when outputSchema root "type" is not "object"', async () => {
+    const packageRoot = await createTempPackage(
+      {
+        name: "invalid-output-schema-root",
+        version: "0.1.0",
+        type: "module",
+        toolbridge: {
+          version: "0.1",
+          tools: {
+            echo: {
+              entry: "./tools/echo.js#echo",
+              description: "Echo output schema",
+              inputSchema: "./schemas/echo.input.json",
+              outputSchema: "./schemas/echo.output.json"
+            }
+          }
+        }
+      },
+      {
+        ...echoFiles,
+        "schemas/echo.output.json": '{"type":"array","items":{"type":"string"}}'
+      }
+    );
+
+    const readResult = await readManifest(packageRoot);
+    const result = await validateManifest(readResult);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContainEqual({
+      path: "toolbridge.tools.echo.outputSchema",
+      message: 'Schema root "type" must be "object"'
+    });
+  });
+
+  it("returns an error when outputSchema cannot be compiled by AJV", async () => {
+    const packageRoot = await createTempPackage(
+      {
+        name: "invalid-output-schema-ajv",
+        version: "0.1.0",
+        type: "module",
+        toolbridge: {
+          version: "0.1",
+          tools: {
+            echo: {
+              entry: "./tools/echo.js#echo",
+              description: "Echo output schema",
+              inputSchema: "./schemas/echo.input.json",
+              outputSchema: "./schemas/echo.output.json"
+            }
+          }
+        }
+      },
+      {
+        ...echoFiles,
+        "schemas/echo.output.json":
+          '{"type":"object","properties":{"message":{"type":123}},"required":["message"],"additionalProperties":false}'
+      }
+    );
+
+    const readResult = await readManifest(packageRoot);
+    const result = await validateManifest(readResult);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.some((issue) => issue.path === "toolbridge.tools.echo.outputSchema")).toBe(true);
+  });
+
+  it("returns an error when entry export is missing", async () => {
+    const packageRoot = await createTempPackage(
+      {
+        name: "missing-entry-export",
+        version: "0.1.0",
+        type: "module",
+        toolbridge: {
+          version: "0.1",
+          tools: {
+            echo: {
+              entry: "./tools/echo.js#missing",
+              description: "Missing export",
+              inputSchema: "./schemas/echo.input.json"
+            }
+          }
+        }
+      },
+      echoFiles
+    );
+
+    const readResult = await readManifest(packageRoot);
+    const result = await validateManifest(readResult);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContainEqual({
+      path: "toolbridge.tools.echo.entry",
+      message: 'Entry export "missing" not found in ./tools/echo.js'
+    });
+  });
+
+  it("returns an error when entry export is not a function", async () => {
+    const packageRoot = await createTempPackage(
+      {
+        name: "entry-export-not-function",
+        version: "0.1.0",
+        type: "module",
+        toolbridge: {
+          version: "0.1",
+          tools: {
+            echo: {
+              entry: "./tools/echo.js#echo",
+              description: "Not a function",
+              inputSchema: "./schemas/echo.input.json"
+            }
+          }
+        }
+      },
+      {
+        ...echoFiles,
+        "tools/echo.js": 'export const echo = "not-a-function";'
+      }
+    );
+
+    const readResult = await readManifest(packageRoot);
+    const result = await validateManifest(readResult);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContainEqual({
+      path: "toolbridge.tools.echo.entry",
+      message: 'Entry export "echo" is not a function in ./tools/echo.js'
     });
   });
 });

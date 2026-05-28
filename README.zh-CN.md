@@ -76,6 +76,13 @@ ToolBridge 将工具分为三层：
 npm install toolbridge
 ```
 
+安装工具包后不会自动暴露工具。  
+你仍然需要显式启用，例如：
+
+```bash
+npx toolbridge add <package>
+```
+
 ## 面向 Agent CLI 的轻量项目级 MCP bridge
 
 对于 Claude Code、Codex、Cursor 这类成品 Agent CLI，ToolBridge 提供一个本地 project-level MCP stdio bridge。
@@ -182,6 +189,7 @@ for (const block of response.content) {
         "entry": "./tools/echo.js#echo",
         "description": "Echo back a plain text message.",
         "inputSchema": "./schemas/echo.input.json",
+        "outputSchema": "./schemas/echo.output.json",
         "enabled": true,
         "targets": {
           "mcp": {
@@ -195,9 +203,12 @@ for (const block of response.content) {
 ```
 
 - `entry`：指向 ESM 文件中的具名导出函数。
-- `inputSchema`：指向 JSON Schema 对象。
+- `inputSchema`：指向 JSON Schema 对象，并在执行前用于输入校验。
+- `outputSchema`：可选字段，用于描述输出契约/文档 metadata，当前不做运行时强制校验。
 - `enabled`：控制该工具默认是否启用。
 - `targets.mcp.enabled`：控制该工具默认是否对 MCP 启用。
+
+如果你需要第三方工具包模板，可参考 `examples/tool-package-template`。
 
 ## Project Config
 

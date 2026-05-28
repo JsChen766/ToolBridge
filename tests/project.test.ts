@@ -68,6 +68,8 @@ const defaultFiles = {
   "tools/shout.js": 'export async function shout(input) { return { message: String(input.message).toUpperCase() }; }',
   "schemas/echo.input.json":
     '{"type":"object","properties":{"message":{"type":"string"}},"required":["message"],"additionalProperties":false}',
+  "schemas/echo.output.json":
+    '{"type":"object","properties":{"message":{"type":"string"}},"required":["message"],"additionalProperties":false}',
   "schemas/shout.input.json":
     '{"type":"object","properties":{"message":{"type":"string"}},"required":["message"],"additionalProperties":false}'
 };
@@ -142,6 +144,33 @@ describe("project config and toolset", () => {
     const projectToolSet = await loadProjectToolSet(projectRoot);
     expect(projectToolSet.tools).toHaveLength(1);
     expect(projectToolSet.tools[0].exposedName).toBe("echo_echo");
+  });
+
+  it("loadProjectToolSet includes optional outputSchema metadata when declared", async () => {
+    const projectRoot = await createTempProject();
+    await writePackage(
+      projectRoot,
+      "examples/echo-tools",
+      createEchoPackageJson({ outputSchema: "./schemas/echo.output.json" }),
+      defaultFiles
+    );
+    await writeProjectConfig(projectRoot, {
+      version: "0.1",
+      packages: {
+        "./examples/echo-tools": {
+          alias: "echo",
+          tools: {
+            echo: { enabled: true }
+          }
+        }
+      }
+    });
+
+    const projectToolSet = await loadProjectToolSet(projectRoot);
+    expect(projectToolSet.tools).toHaveLength(1);
+    expect(projectToolSet.tools[0].outputSchema).toMatchObject({
+      type: "object"
+    });
   });
 
   it("inspect --project prints exposed tools", async () => {

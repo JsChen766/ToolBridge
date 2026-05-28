@@ -1,0 +1,31 @@
+﻿{
+  "name": "toolbridge-tool-package-template",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Minimal template for ToolBridge-compatible npm tool packages.",
+  "scripts": {
+    "build": "tsup"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "typescript": "^5.8.3"
+  },
+  "toolbridge": {
+    "version": "0.1",
+    "tools": {
+      "echo": {
+        "entry": "./dist/tools/echo.js#echo",
+        "description": "Echo back a text message. Use this as a minimal ToolBridge tool package template.",
+        "inputSchema": "./schemas/echo.input.json",
+        "outputSchema": "./schemas/echo.output.json",
+        "enabled": true,
+        "targets": {
+          "mcp": {
+            "enabled": true
+          }
+        }
+      }
+    }
+  }
+}

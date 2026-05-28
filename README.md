@@ -76,6 +76,13 @@ Installed tools are not automatically exposed.
 npm install toolbridge
 ```
 
+Installing a tool package does not expose it automatically.  
+You must explicitly enable tools in project config, for example:
+
+```bash
+npx toolbridge add <package>
+```
+
 ## Project-level MCP for Agent CLIs
 
 For Agent CLIs such as Claude Code, Codex, or Cursor, ToolBridge provides a local project-level MCP stdio bridge.
@@ -181,6 +188,7 @@ for (const block of response.content) {
         "entry": "./tools/echo.js#echo",
         "description": "Echo back a plain text message.",
         "inputSchema": "./schemas/echo.input.json",
+        "outputSchema": "./schemas/echo.output.json",
         "enabled": true,
         "targets": {
           "mcp": {
@@ -194,9 +202,13 @@ for (const block of response.content) {
 ```
 
 - `entry` points to a named ESM export.
-- `inputSchema` points to a JSON Schema object.
+- `inputSchema` points to a JSON Schema object and is used for input validation before execution.
+- `outputSchema` is optional. It describes output contract metadata and is not enforced at runtime.
 - `enabled` controls whether the tool is enabled by default.
 - `targets.mcp.enabled` controls whether the tool is enabled by default for MCP.
+
+Need a starting point for third-party tool packages?  
+See `examples/tool-package-template`.
 
 ## Project Config
 

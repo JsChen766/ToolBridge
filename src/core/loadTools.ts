@@ -13,6 +13,7 @@ export const toolDefinitionSchema = z.object({
   entry: z.string().min(1, "Must be a non-empty string"),
   description: z.string().trim().min(1, "Must be a non-empty string"),
   inputSchema: z.string().min(1, "Must be a non-empty string"),
+  outputSchema: z.string().min(1, "Must be a non-empty string").optional(),
   enabled: z.boolean().optional(),
   targets: toolTargetsSchema.optional()
 });
