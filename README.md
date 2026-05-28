@@ -203,6 +203,34 @@ for (const block of response.content) {
 
 ToolBridge does not call the model or manage the full agent loop. It provides tool schemas and executes returned tool calls.
 
+## Live API verification
+
+ToolBridge has been tested against real DeepSeek OpenAI-compatible and Anthropic-compatible API endpoints.
+
+The live smoke test verified that:
+
+- ToolBridge-generated OpenAI-compatible tool schemas can be attached to real OpenAI-style requests.
+- ToolBridge-generated Anthropic-compatible tool schemas can be attached to real Anthropic-style requests.
+- The model can trigger `tool_call` / `tool_use` from those schemas.
+- ToolBridge can execute the returned tool calls.
+- Tool execution results can be sent back to the model.
+- The model can produce the correct final answer after receiving the tool result.
+
+This confirms that ToolBridge works not only as a schema converter, but also as a tool execution layer in real agent-style API flows.
+
+Note: this verification confirms compatibility with the tested DeepSeek OpenAI-compatible and Anthropic-compatible endpoints. Other providers may differ in tool-calling behavior or API compatibility.
+
+```text
+npm install toolbridge
+-> declare local tools
+-> generate OpenAI/Anthropic-compatible tool schemas
+-> attach schemas to a real model request
+-> model returns tool_call / tool_use
+-> ToolBridge executes the tool
+-> send tool result back to the model
+-> final answer
+```
+
 ## Package tool declaration
 
 A ToolBridge-compatible package declares tools in `package.json`:
@@ -273,6 +301,8 @@ Notes:
 - Exposed tool name format is `alias_toolName`.
 - In this example, the tool is exposed as `echo_echo`.
 - Tools not selected here are not exposed.
+
+After installing a ToolBridge-compatible npm package, ToolBridge will not expose its tools automatically. Run `npx toolbridge add <package>` to explicitly add selected tools to `toolbridge.config.json`.
 
 ## CLI reference
 
