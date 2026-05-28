@@ -1,4 +1,4 @@
-<!-- [![npm version](https://img.shields.io/npm/v/toolbridge?color=orange&label=npm)](https://www.npmjs.com/package/toolbridge) -->
+[![npm version](https://img.shields.io/npm/v/toolbridge?color=orange&label=npm)](https://www.npmjs.com/package/toolbridge)
 ![node >=20](https://img.shields.io/badge/node-%3E%3D20-brightgreen)
 [![npm downloads](https://img.shields.io/npm/dm/toolbridge?color=blue&label=downloads)](https://www.npmjs.com/package/toolbridge)
 [![license](https://img.shields.io/github/license/JsChen766/ToolBridge)](https://github.com/JsChen766/ToolBridge/blob/main/LICENSE)
@@ -245,12 +245,3 @@ npm pack --dry-run
 ```
 
 `npm pack --dry-run` helps verify publish contents before release.
-
-<!-- ## Scope Limits (v0.1.0)
-
-- No marketplace
-- No desktop app
-- No remote server
-- No Docker workflow requirement
-- No package manager features (`npm install` / `uninstall`)
-- No automatic node_modules scan-and-expose behavior -->
