@@ -5,6 +5,7 @@ One project, one bridge, selected tools only.
 Install many. Declare many. Expose few.
 
 ToolBridge is a lightweight CLI/library that turns npm package tool declarations into MCP tools through one project-level stdio bridge.
+Declare once. Use through MCP or native adapters.
 
 ## Model
 
@@ -15,6 +16,7 @@ ToolBridge separates three layers:
 - `toolbridge.config.json` = exposed tools
 
 ToolBridge does not auto-expose all installed packages. Only tools selected in `toolbridge.config.json` are exposed to MCP.
+ToolBridge adapters turn selected npm-declared tools into native tool formats for different agent runtimes.
 
 ## Project-Level Quickstart
 
@@ -39,6 +41,63 @@ toolbridge mcp ./examples/echo-tools
 
 Package-level mode is useful for debugging a single tool package, but project-level mode is recommended for real agent usage.
 Project-level mode keeps one MCP server per project and exposes only selected tools from `toolbridge.config.json`.
+
+## Use In Custom Agents
+
+ToolBridge is not only an MCP bridge.
+
+- For packaged Agent CLIs, use project-level MCP: `toolbridge mcp --project .`
+- For custom agents, use native adapters from this package:
+  - `createOpenAIToolSet`
+  - `createAnthropicToolSet`
+
+Adapters read only tools selected in `toolbridge.config.json`.
+Installed packages do not automatically enter model context.
+Token cost comes from exposed tool schemas, not installed packages.
+
+### OpenAI-Compatible Example
+
+```ts
+import { createOpenAIToolSet } from "toolbridge";
+
+const toolSet = await createOpenAIToolSet({ projectRoot: "." });
+
+const response = await client.chat.completions.create({
+  model: "your-model",
+  messages,
+  tools: toolSet.tools
+});
+
+for (const toolCall of response.choices[0].message.tool_calls ?? []) {
+  const output = await toolSet.executeToolCall(toolCall);
+  messages.push({
+    role: "tool",
+    tool_call_id: toolCall.id,
+    content: JSON.stringify(output)
+  });
+}
+```
+
+### Anthropic-Compatible Example
+
+```ts
+import { createAnthropicToolSet } from "toolbridge";
+
+const toolSet = await createAnthropicToolSet({ projectRoot: "." });
+
+const response = await anthropic.messages.create({
+  model: "your-model",
+  messages,
+  tools: toolSet.tools
+});
+
+for (const block of response.content) {
+  if (block.type === "tool_use") {
+    const output = await toolSet.executeToolUse(block);
+    // send tool_result back to Anthropic in your agent loop
+  }
+}
+```
 
 ## Package Tool Declaration
 
