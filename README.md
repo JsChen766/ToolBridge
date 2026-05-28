@@ -1,3 +1,5 @@
+<h1 align="center">ToolBridge</h1>
+
 [![npm version](https://img.shields.io/npm/v/toolbridge?color=orange&label=npm)](https://www.npmjs.com/package/toolbridge)
 ![node >=20](https://img.shields.io/badge/node-%3E%3D20-brightgreen)
 [![npm downloads](https://img.shields.io/npm/dm/toolbridge?color=blue&label=downloads)](https://www.npmjs.com/package/toolbridge)
@@ -5,8 +7,6 @@
 [![stars](https://img.shields.io/github/stars/JsChen766/ToolBridge?style=flat)](https://github.com/JsChen766/ToolBridge/stargazers)
 
 English | [中文](./README.zh-CN.md)
-
-# ToolBridge
 
 One project, one bridge, selected tools only.
 
