@@ -1,0 +1,15 @@
+{
+  "name": "echo-tools",
+  "version": "0.1.0",
+  "type": "module",
+  "agentTools": {
+    "version": "0.1",
+    "tools": {
+      "echo": {
+        "entry": "./tools/echo.js#echo",
+        "description": "Echo a message back to the user.",
+        "inputSchema": "./schemas/echo.input.json"
+      }
+    }
+  }
+}
