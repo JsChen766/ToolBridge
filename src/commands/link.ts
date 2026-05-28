@@ -47,11 +47,11 @@ async function resolveLinkName(packageRef: string, isLocalPath: boolean): Promis
 
 export async function linkCommand(packageRef?: string, options: LinkOptions = {}): Promise<void> {
   if (options.target !== "claude-code") {
-    throw new Error('Only "--target claude-code" is supported in v0.1-alpha');
+    throw new Error('Only "--target claude-code" is supported in v0.1.0');
   }
 
   if (!options.dryRun) {
-    throw new Error('Only "--dry-run" is supported in v0.1-alpha');
+    throw new Error('Only "--dry-run" is supported in v0.1.0');
   }
 
   if (options.project) {

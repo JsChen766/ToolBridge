@@ -24,7 +24,7 @@ const program = new Command();
 program
   .name("toolbridge")
   .description("One project MCP bridge for selected npm tools")
-  .version("0.1.0-alpha.0");
+  .version("0.1.0");
 
 program
   .command("inspect")

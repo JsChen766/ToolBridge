@@ -197,7 +197,7 @@ npm run build
 npm pack --dry-run
 ```
 
-## 当前边界（v0.1-alpha）
+## 当前边界（v0.1.0）
 
 - 不做 marketplace
 - 不做 desktop app
