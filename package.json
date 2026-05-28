@@ -1,26 +1,50 @@
 {
   "name": "toolbridge",
-  "version": "0.1.0",
-  "description": "Expose npm package agentTools through a local CLI and MCP bridge.",
+  "version": "0.1.0-alpha.0",
+  "description": "One project-level bridge for selected npm-declared agent tools via MCP and native adapters.",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "bin": {
     "toolbridge": "./dist/cli.js"
   },
   "exports": {
     ".": "./dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JsChen766/ToolBridge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JsChen766/ToolBridge/issues"
+  },
+  "homepage": "https://github.com/JsChen766/ToolBridge#readme",
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node scripts/fix-cli-shebang.mjs",
     "dev": "tsx src/cli.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run typecheck && npm run test && npm run build"
   },
   "keywords": [
     "agent",
+    "ai-agent",
     "mcp",
     "tools",
-    "cli"
+    "tool-calling",
+    "openai",
+    "anthropic",
+    "npm-tools",
+    "llm",
+    "claude-code"
   ],
   "license": "MIT",
   "dependencies": {

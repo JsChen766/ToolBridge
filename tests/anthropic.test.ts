@@ -5,11 +5,11 @@ import { createAnthropicToolSet } from "../src/adapters/anthropic.js";
 import { writeProjectConfig } from "../src/project/config.js";
 
 const tempDirs: string[] = [];
+const ANTHROPIC_TMP_DIR = path.resolve(".tmp-toolbridge-tests-anthropic");
 
 async function createTempProject(): Promise<string> {
-  const baseDir = path.resolve(".tmp-toolbridge-tests");
-  await mkdir(baseDir, { recursive: true });
-  const dir = await mkdtemp(path.join(baseDir, "toolbridge-anthropic-"));
+  await mkdir(ANTHROPIC_TMP_DIR, { recursive: true });
+  const dir = await mkdtemp(path.join(ANTHROPIC_TMP_DIR, "toolbridge-anthropic-"));
   tempDirs.push(dir);
   return dir;
 }
@@ -61,8 +61,7 @@ afterEach(async () => {
       await rm(dir, { recursive: true, force: true });
     }
   }
-  const baseDir = path.resolve(".tmp-toolbridge-tests");
-  await rm(baseDir, { recursive: true, force: true });
+  await rm(ANTHROPIC_TMP_DIR, { recursive: true, force: true });
 });
 
 describe("Anthropic adapter", () => {

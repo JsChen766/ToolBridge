@@ -7,8 +7,5 @@ export default defineConfig({
   },
   format: ["esm"],
   clean: true,
-  dts: true,
-  banner: {
-    js: "#!/usr/bin/env node"
-  }
+  dts: true
 });

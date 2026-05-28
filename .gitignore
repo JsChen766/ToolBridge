@@ -4,3 +4,7 @@ coverage/
 .DS_Store
 *.log
 .tmp-toolbridge-tests/
+.tmp-toolbridge-tests-openai/
+.tmp-toolbridge-tests-anthropic/
+toolbridge.config.json
+*.tgz

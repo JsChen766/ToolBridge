@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { Command } from "commander";
 import { inspectCommand } from "./commands/inspect.js";
 import { validateCommand } from "./commands/validate.js";
@@ -23,7 +24,7 @@ const program = new Command();
 program
   .name("toolbridge")
   .description("One project MCP bridge for selected npm tools")
-  .version("0.1.0");
+  .version("0.1.0-alpha.0");
 
 program
   .command("inspect")

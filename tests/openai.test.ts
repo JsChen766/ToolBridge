@@ -5,11 +5,11 @@ import { createOpenAIToolSet } from "../src/adapters/openai.js";
 import { writeProjectConfig } from "../src/project/config.js";
 
 const tempDirs: string[] = [];
+const OPENAI_TMP_DIR = path.resolve(".tmp-toolbridge-tests-openai");
 
 async function createTempProject(): Promise<string> {
-  const baseDir = path.resolve(".tmp-toolbridge-tests");
-  await mkdir(baseDir, { recursive: true });
-  const dir = await mkdtemp(path.join(baseDir, "toolbridge-openai-"));
+  await mkdir(OPENAI_TMP_DIR, { recursive: true });
+  const dir = await mkdtemp(path.join(OPENAI_TMP_DIR, "toolbridge-openai-"));
   tempDirs.push(dir);
   return dir;
 }
@@ -61,8 +61,7 @@ afterEach(async () => {
       await rm(dir, { recursive: true, force: true });
     }
   }
-  const baseDir = path.resolve(".tmp-toolbridge-tests");
-  await rm(baseDir, { recursive: true, force: true });
+  await rm(OPENAI_TMP_DIR, { recursive: true, force: true });
 });
 
 describe("OpenAI adapter", () => {
