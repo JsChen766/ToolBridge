@@ -76,12 +76,8 @@ Installed tools are not automatically exposed.
 npm install toolbridge
 ```
 
-Installing a tool package does not expose it automatically.  
-You must explicitly enable tools in project config, for example:
-
-```bash
-npx toolbridge add <package>
-```
+After installing a ToolBridge-compatible npm package, ToolBridge will not expose its tools automatically.  
+Run `npx toolbridge add <package>` to explicitly add selected tools to `toolbridge.config.json`.
 
 ## Project-level MCP for Agent CLIs
 

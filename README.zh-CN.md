@@ -76,12 +76,8 @@ ToolBridge 将工具分为三层：
 npm install toolbridge
 ```
 
-安装工具包后不会自动暴露工具。  
-你仍然需要显式启用，例如：
-
-```bash
-npx toolbridge add <package>
-```
+通过 npm 安装 ToolBridge-compatible 工具包后，ToolBridge 不会自动暴露其中的 tools。  
+你需要显式运行 `npx toolbridge add <package>`，将需要的工具加入 `toolbridge.config.json`。
 
 ## 面向 Agent CLI 的轻量项目级 MCP bridge
 

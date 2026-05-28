@@ -71,6 +71,7 @@ async function inspectProject(projectInput?: string): Promise<void> {
     console.log(`  original: ${tool.originalName}`);
     console.log(`  alias: ${tool.alias}`);
     console.log(`  description: ${tool.description}`);
+    console.log(`  outputSchema: ${tool.outputSchema ? "yes" : "no"}`);
   }
 }
 
