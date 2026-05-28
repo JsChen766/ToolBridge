@@ -1,6 +1,4 @@
-<h1 align="center">ToolBridge</h1>
-
-[![npm version](https://img.shields.io/npm/v/toolbridge?color=orange&label=npm)](https://www.npmjs.com/package/toolbridge)
+﻿[![npm version](https://img.shields.io/npm/v/toolbridge?color=orange&label=npm)](https://www.npmjs.com/package/toolbridge)
 ![node >=20](https://img.shields.io/badge/node-%3E%3D20-brightgreen)
 [![npm downloads](https://img.shields.io/npm/dm/toolbridge?color=blue&label=downloads)](https://www.npmjs.com/package/toolbridge)
 [![license](https://img.shields.io/github/license/JsChen766/ToolBridge)](https://github.com/JsChen766/ToolBridge/blob/main/LICENSE)
@@ -8,17 +6,69 @@
 
 English | [中文](./README.zh-CN.md)
 
-One project, one bridge, selected tools only.
+# ToolBridge
 
+ToolBridge lets npm packages declare reusable AI agent tools once. Each project then chooses which tools to expose, either through a lightweight project-level MCP stdio bridge for Agent CLIs, or through native OpenAI / Anthropic adapters for custom agents.
+
+One project, one bridge, selected tools only.  
 Install many. Declare many. Expose few.
 
-ToolBridge lets npm packages declare agent tools once, then exposes only selected tools through MCP or native adapters for OpenAI-compatible and Anthropic-compatible agent runtimes.
+## What is ToolBridge?
 
-- Use one project-level MCP bridge instead of one MCP server per tool package.
-- Convert selected npm-declared tools into OpenAI / Anthropic native tool schemas.
-- Keep installed tools, declared tools, and exposed tools strictly separated.
-- Avoid exposing every installed package to the model context.
-- No marketplace, daemon, remote server, or automatic node_modules scanning.
+ToolBridge is a lightweight Node.js CLI and library for turning npm packages into reusable AI agent tools.
+
+A tool package declares its available tools in `package.json.toolbridge`.
+A project chooses which tools to expose in `toolbridge.config.json`.
+ToolBridge then exposes those selected tools to:
+
+- Agent CLIs through one project-level MCP stdio bridge
+- Custom OpenAI-compatible agents through `createOpenAIToolSet`
+- Custom Anthropic-compatible agents through `createAnthropicToolSet`
+
+## Why use ToolBridge?
+
+- Use one project-level MCP stdio bridge instead of one MCP server per tool package.
+- Keep MCP as a thin compatibility layer for Agent CLIs, not as a heavy server architecture.
+- Control model context by selecting exposed tools explicitly.
+- Reuse the same declared tools with MCP, OpenAI-compatible, and Anthropic-compatible runtimes.
+- Keep installation, declaration, and exposure as separate steps.
+
+ToolBridge does not remove tool schema token cost. It helps avoid unnecessary tool schema exposure.
+
+## Is ToolBridge a heavy MCP server?
+
+No. ToolBridge uses MCP as a transport only when connecting to MCP-compatible Agent CLIs.
+
+ToolBridge MCP mode is lightweight because:
+
+- it runs as a local stdio process
+- it does not start an HTTP server
+- it does not listen on a port
+- it does not run as a background daemon
+- it does not connect to a remote registry
+- it does not scan `node_modules` automatically
+- it exposes only tools explicitly selected in `toolbridge.config.json`
+
+The number of MCP servers is not what determines model token cost.
+Model token cost comes from the tool schemas visible to the model: tool names, descriptions, and input schemas.
+
+If the same set of tool schemas is exposed, ToolBridge MCP mode has roughly the same model-context cost as normal tool/function calling.
+
+ToolBridge reduces unnecessary context by separating installed tools from exposed tools.
+
+## Core model
+
+ToolBridge separates tools into three layers:
+
+- Installed tools: npm packages present in the project.
+- Declared tools: tools described by `package.json.toolbridge` inside those packages.
+- Exposed tools: the small selected subset enabled in `toolbridge.config.json`.
+
+Only exposed tools are converted into MCP/OpenAI/Anthropic tool schemas.
+
+This is the main mechanism that keeps the model context small.
+
+Installed tools are not automatically exposed.
 
 ## Installation
 
@@ -26,55 +76,55 @@ ToolBridge lets npm packages declare agent tools once, then exposes only selecte
 npm install toolbridge
 ```
 
+## Project-level MCP for Agent CLIs
+
+For Agent CLIs such as Claude Code, Codex, or Cursor, ToolBridge provides a local project-level MCP stdio bridge.
+
+Users do not need to write a custom MCP server for each tool package.
+A project registers one ToolBridge bridge, and that bridge exposes only selected tools.
+
+Command:
+
 ```bash
-npx toolbridge --help
+toolbridge mcp --project .
 ```
 
-## Model
-
-ToolBridge separates three layers:
-
-- `npm install` = installed tools
-- `package.json.toolbridge` (or legacy `package.json.agentTools`) = declared tools
-- `toolbridge.config.json` = exposed tools
-
-ToolBridge adapters do not call the model. They only:
-
-1. convert selected project tools into provider-compatible tool schemas
-2. execute tool calls/tool uses returned by your agent runtime
+This command is normally started by the Agent CLI after configuration. Users usually do not need to keep it running manually.
 
 ## Project-Level Quickstart
 
 ```bash
-npm install
-npm run build
-
 npx toolbridge init
 npx toolbridge add ./examples/echo-tools
-npx toolbridge inspect --project "."
-npx toolbridge link --project "." --target claude-code --dry-run
-npx toolbridge mcp --project "."
+npx toolbridge inspect --project .
+npx toolbridge link --project . --target claude-code --dry-run
 ```
 
-Recommended mode: `toolbridge mcp --project "."`
+`link --dry-run` only prints the Claude Code command. It does not modify user configuration.
 
-Legacy/debug mode (single package):
+Example command output (run manually):
 
 ```bash
-toolbridge mcp ./examples/echo-tools
+claude mcp add toolbridge-project -- node "/absolute/path/to/dist/cli.js" mcp --project "/absolute/path/to/project"
 ```
 
-Package-level mode is useful for debugging one tool package. Project-level mode is recommended for real agent usage.
+For local development in this repository:
+
+```bash
+node dist/cli.js mcp --project .
+```
+
+## Claude Code E2E
+
+After registration, Claude Code starts the ToolBridge stdio bridge when needed.
+You do not need to manually run a long-lived server.
 
 ## Use In Custom Agents
 
-ToolBridge adapters turn selected npm-declared tools into native tool formats for different agent runtimes.
+For custom agents, you do not need MCP.
+Use `createOpenAIToolSet` or `createAnthropicToolSet` to convert selected tools directly into native provider tool schemas.
 
-Adapters read only tools selected in `toolbridge.config.json`.
-Installed packages do not automatically enter model context.
-Token cost comes from exposed tool schemas, not installed packages.
-
-### OpenAI-Compatible Example
+### OpenAI-compatible agents
 
 ```ts
 import { createOpenAIToolSet } from "toolbridge";
@@ -97,11 +147,9 @@ for (const toolCall of response.choices[0].message.tool_calls ?? []) {
 }
 ```
 
-- `executeToolCall` only executes one returned tool call.
-- You still need to append tool results in your own agent loop.
-- ToolBridge does not run the model or manage the full loop.
+ToolBridge does not call the model or manage the full agent loop. It only provides tool schemas and executes returned tool calls.
 
-### Anthropic-Compatible Example
+### Anthropic-compatible agents
 
 ```ts
 import { createAnthropicToolSet } from "toolbridge";
@@ -117,14 +165,10 @@ const response = await anthropic.messages.create({
 for (const block of response.content) {
   if (block.type === "tool_use") {
     const output = await toolSet.executeToolUse(block);
-    // send tool_result back in your agent loop
+    // Send the tool_result back in your own agent loop.
   }
 }
 ```
-
-- `executeToolUse` only executes one `tool_use` block.
-- You still need to send a `tool_result` block/message yourself.
-- ToolBridge only adapts selected tools and executes tool calls.
 
 ## Package Tool Declaration
 
@@ -149,7 +193,10 @@ for (const block of response.content) {
 }
 ```
 
-Legacy `agentTools` is still supported.
+- `entry` points to a named ESM export.
+- `inputSchema` points to a JSON Schema object.
+- `enabled` controls whether the tool is enabled by default.
+- `targets.mcp.enabled` controls whether the tool is enabled by default for MCP.
 
 ## Project Config
 
@@ -175,73 +222,53 @@ Legacy `agentTools` is still supported.
 }
 ```
 
-Exposed tool name format:
+- `packages` keys can be npm package names or local package paths.
+- `alias` is used to generate exposed tool names.
+- Exposed tool name format is `alias_toolName`.
+- In this example, the tool is exposed as `echo_echo`.
+- Tools not listed here are not exposed.
 
-```text
-<alias>_<toolName>
-```
-
-Example: `echo_echo`
-
-## CLI Commands
+## CLI reference
 
 - `toolbridge init`
 - `toolbridge add <package>`
 - `toolbridge add <package>:<tool>`
+- `toolbridge inspect --project .`
 - `toolbridge inspect <package>`
-- `toolbridge inspect --project "."`
 - `toolbridge validate <package>`
 - `toolbridge run <package> <tool> <json>`
-- `toolbridge mcp --project "."` (recommended)
+- `toolbridge mcp --project .`
 - `toolbridge mcp <package>` (legacy/debug)
-- `toolbridge link --project "." --target claude-code --dry-run` (recommended)
-- `toolbridge link <package> --target claude-code --dry-run` (legacy/debug)
+- `toolbridge link --project . --target claude-code --dry-run`
 
-Windows note for `add <package>:<tool>`:
+## Security notes
 
-- Do not use `:tool` suffix with absolute paths like `E:\...`.
-- Use a relative path: `toolbridge add ./examples/echo-tools:echo`
-- Or use an npm package name: `toolbridge add @scope/pkg:toolName`
+- ToolBridge executes local npm package functions.
+- Only install and expose tool packages you trust.
+- ToolBridge does not automatically expose all installed packages.
+- Review `toolbridge.config.json` before connecting it to an agent.
 
-## Claude Code E2E
+## Current limits
 
-```bash
-npm run build
-node dist/cli.js init
-node dist/cli.js add ./examples/echo-tools
-node dist/cli.js inspect --project "."
-claude mcp add toolbridge-project -- node "/absolute/path/to/toolbridge/dist/cli.js" mcp --project "/absolute/path/to/project"
-```
+- Node/ESM tools only
+- Project-level MCP bridge
+- No marketplace
+- No automatic npm install/uninstall
+- No automatic node_modules scanning
+- No remote server
+- No desktop app
 
-Then ask:
-
-```text
-Use the echo_echo tool with message set to hello from project bridge.
-```
-
-## Adapter Smoke Test
+## Development
 
 ```bash
-npm run build
-node dist/cli.js init
-node dist/cli.js add ./examples/echo-tools
-node examples/adapter-smoke.mjs
-```
-
-Expected output includes:
-
-- OpenAI tools with `echo_echo`
-- Anthropic tools with `echo_echo`
-- `hello openai adapter`
-- `hello anthropic adapter`
-
-## Publish Checklist
-
-```bash
+npm install
 npm run typecheck
 npm run test
 npm run build
-npm pack --dry-run
 ```
 
-`npm pack --dry-run` helps verify publish contents before release.
+Release check:
+
+```bash
+npm pack --dry-run
+```
