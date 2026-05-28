@@ -6,7 +6,8 @@
     "strict": true,
     "skipLibCheck": true,
     "declaration": false,
-    "outDir": "dist"
+    "rootDir": "src/tools",
+    "outDir": "dist/tools"
   },
-  "include": ["src"]
+  "include": ["src/tools/**/*.ts"]
 }
