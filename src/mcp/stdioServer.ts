@@ -15,6 +15,12 @@ type ObjectSchema = {
   [key: string]: unknown;
 };
 
+export interface McpToolDefinition {
+  name: string;
+  description: string;
+  inputSchema: ObjectSchema;
+}
+
 async function readToolInputSchema(packageRoot: string, inputSchemaRef: string): Promise<ObjectSchema> {
   const schemaPath = path.resolve(packageRoot, inputSchemaRef);
   const raw = await readFile(schemaPath, "utf8");
@@ -27,7 +33,7 @@ async function readToolInputSchema(packageRoot: string, inputSchemaRef: string):
   return parsed as ObjectSchema;
 }
 
-export async function startStdioServer(packageRef: string): Promise<void> {
+export async function loadMcpToolDefinitions(packageRef: string): Promise<McpToolDefinition[]> {
   const readResult = await readManifest(packageRef);
   const validation = await validateManifest(readResult);
 
@@ -42,46 +48,82 @@ export async function startStdioServer(packageRef: string): Promise<void> {
   }
 
   const tools = loadTools(manifest);
-  const toolSchemas = new Map<string, ObjectSchema>();
+  const definitions: McpToolDefinition[] = [];
 
-  for (const [toolName, definition] of Object.entries(tools)) {
-    const schema = await readToolInputSchema(readResult.packageRoot, definition.inputSchema);
-    toolSchemas.set(toolName, schema);
+  for (const [name, definition] of Object.entries(tools)) {
+    definitions.push({
+      name,
+      description: definition.description,
+      inputSchema: await readToolInputSchema(readResult.packageRoot, definition.inputSchema)
+    });
   }
 
+  return definitions;
+}
+
+export async function startStdioServer(packageRef: string): Promise<void> {
+  const definitions = await loadMcpToolDefinitions(packageRef);
+  const toolNames = new Set(definitions.map((definition) => definition.name));
+
   const server = new Server(
-    { name: `toolbridge:${readResult.packageJson.name ?? "package"}`, version: "0.1.0" },
+    { name: "toolbridge-mcp", version: "0.1.0" },
     { capabilities: { tools: {} } }
   );
 
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     return {
-      tools: Object.entries(tools).map(([name, definition]) => ({
-        name,
-        description: definition.description,
-        inputSchema: toolSchemas.get(name) as ObjectSchema
-      }))
+      tools: definitions
     };
   });
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const toolName = request.params.name;
-    if (!tools[toolName]) {
+    if (!toolNames.has(toolName)) {
       return {
         isError: true,
-        content: [{ type: "text", text: `Unknown tool: ${toolName}` }]
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              ok: false,
+              error: {
+                message: `Tool "${toolName}" not found`,
+                tool: toolName
+              }
+            })
+          }
+        ]
       };
     }
 
     try {
       const result = await executeToolByName(packageRef, toolName, request.params.arguments ?? {});
       return {
-        content: [{ type: "text", text: JSON.stringify(result ?? null, null, 2) }]
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              ok: true,
+              output: result ?? null
+            })
+          }
+        ]
       };
     } catch (error) {
       return {
         isError: true,
-        content: [{ type: "text", text: (error as Error).message }]
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              ok: false,
+              error: {
+                message: (error as Error).message,
+                tool: toolName
+              }
+            })
+          }
+        ]
       };
     }
   });
