@@ -1,25 +1,14 @@
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import Ajv2020 from "ajv/dist/2020.js";
-import { z } from "zod";
 import { parseEntry } from "./loadToolFunction.js";
+import { manifestSchema } from "./loadTools.js";
 import type {
   AgentToolsManifest,
   ReadManifestResult,
   ValidationIssue,
   ValidationResult
 } from "./types.js";
-
-const toolDefinitionSchema = z.object({
-  entry: z.string().min(1),
-  description: z.string().optional(),
-  inputSchema: z.string().min(1).optional()
-});
-
-const manifestSchema = z.object({
-  version: z.literal("0.1"),
-  tools: z.record(z.string().min(1), toolDefinitionSchema)
-});
 
 async function fileExists(targetPath: string): Promise<boolean> {
   try {
@@ -46,8 +35,9 @@ export async function validateManifest(
   const parsed = manifestSchema.safeParse(readResult.manifest);
   if (!parsed.success) {
     for (const issue of parsed.error.issues) {
+      const issuePath = issue.path.join(".");
       issues.push({
-        path: issue.path.join(".") || "agentTools",
+        path: issuePath ? `agentTools.${issuePath}` : "agentTools",
         message: issue.message
       });
     }
@@ -92,7 +82,14 @@ export async function validateManifest(
 
     try {
       const schemaRaw = await readFile(schemaPath, "utf8");
-      const schemaJson = JSON.parse(schemaRaw) as object;
+      const schemaJson = JSON.parse(schemaRaw) as Record<string, unknown>;
+      if (schemaJson.type !== "object") {
+        issues.push({
+          path: `agentTools.tools.${toolName}.inputSchema`,
+          message: 'Schema root "type" must be "object"'
+        });
+        continue;
+      }
       ajv.compile(schemaJson);
     } catch (error) {
       issues.push({

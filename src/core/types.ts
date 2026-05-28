@@ -1,7 +1,7 @@
 export interface ToolDefinition {
   entry: string;
-  description?: string;
-  inputSchema?: string;
+  description: string;
+  inputSchema: string;
 }
 
 export interface AgentToolsManifest {

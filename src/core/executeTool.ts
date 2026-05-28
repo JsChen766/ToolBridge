@@ -8,13 +8,9 @@ import { validateManifest } from "./validateManifest.js";
 
 async function validateToolInput(
   packageRoot: string,
-  schemaPathRef: string | undefined,
+  schemaPathRef: string,
   input: unknown
 ): Promise<void> {
-  if (!schemaPathRef) {
-    return;
-  }
-
   const schemaPath = path.resolve(packageRoot, schemaPathRef);
   const schemaRaw = await readFile(schemaPath, "utf8");
   const schemaJson = JSON.parse(schemaRaw) as object;

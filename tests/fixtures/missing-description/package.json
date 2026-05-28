@@ -1,0 +1,14 @@
+{
+  "name": "missing-description",
+  "version": "0.1.0",
+  "type": "module",
+  "agentTools": {
+    "version": "0.1",
+    "tools": {
+      "echo": {
+        "entry": "./tools/echo.js#echo",
+        "inputSchema": "./schemas/echo.input.json"
+      }
+    }
+  }
+}
